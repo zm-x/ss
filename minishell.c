@@ -1,76 +1,161 @@
 #include "minishell.h"
 
-void	pipex(mini_t *mini, char *path, char *input)
+void	free_split(char **str)
+{
+	int	i;
+
+	i = 0;
+	while (str[i])
+		free(str[i++]);
+	free(str);
+}
+
+int	count_array(char **str)
+{
+	int	i;
+
+	i = 0;
+	while (str[i])
+		i++;
+	return (i);
+}
+
+void	mini_pipex(shell_t *shell, char *path, char *input)
 {
 	char	**str;
 
 	str = ft_split(input, ' ');
 	path[ft_strlen(path) - 1] = '\0';
-	dup2(mini->ffd[1], 1);
-	close(mini->ffd[0]);
-    close(mini->ffd[1]);
-	execve(path, str, mini->env);
+	execve(path, str, shell->env);
 	perror("execve failed");
-    exit(EXIT_FAILURE);
+    exit(1);
 }
 
-void	get_command(mini_t *mini, char *command)
+void	get_command(shell_t *shell, char *command)
 {
 	char	**str;
 
 	str = ft_split(ft_strjoin("which ", command), ' ');
-	dup2(mini->fd[1], 1);
-	close(mini->fd[0]);
-    close(mini->fd[1]);
-	execve("/usr/bin/which", &str[0], mini->env);
+	dup2(shell->fd[1], 1);
+	close(shell->fd[0]);
+    close(shell->fd[1]);
+	execve("/usr/bin/which", &str[0], shell->env);
+}
+
+void	put_command(shell_t *shell, char *input)
+{
+		pipe(shell->fd);
+		shell->pid = fork();
+		if (shell->pid == 0)
+			get_command(shell, input);
+		close(shell->fd[1]);
+		wait(NULL);
+		shell->path = get_next_line(shell->fd[0]);
+		if (!shell->path)
+			printf("minishell: %s no such file or directory\n", input);
+		close(shell->fd[0]);
+}
+
+int	find_pipe(char *av)
+{
+	int	i;
+
+	i = 0;
+	while (av[i])
+	{
+		if (av[i] == '|')
+			return (1);
+		i++;
+	}
+	return (0);
+}
+
+void	child(shell_t *shell, int i)
+{
+	dup2(shell->fd[1], 1);
+	close(shell->fd[0]);
+    close(shell->fd[1]);
+	put_command(shell, shell->d_input[i]);
+	mini_pipex(shell, shell->path, shell->d_input[i]);
+}
+
+void	middle_child(shell_t *shell, int i)
+{
+	dup2(shell->fd[1], 1);
+	dup2(shell->prev_fd, 0);
+	close(shell->fd[0]);
+    close(shell->fd[1]);
+	close(shell->prev_fd);
+	put_command(shell, shell->d_input[i]);
+	mini_pipex(shell, shell->path, shell->d_input[i]);
+}
+
+void	last_child(shell_t *shell, int i)
+{
+	dup2(shell->prev_fd, 0);
+	close(shell->prev_fd);
+	put_command(shell, shell->d_input[i]);
+	mini_pipex(shell, shell->path, shell->d_input[i]);
+}
+
+void	real_pipex(shell_t *shell)
+{
+	int	i;
+
+	i = 1;
+	shell->d_input = ft_split(shell->input, '|');
+	shell->input_len = count_array(shell->d_input);
+	pipe(shell->fd);
+	shell->pid = fork();
+	if (shell->pid == 0)
+		child(shell, 0);
+	close(shell->fd[1]);
+	shell->prev_fd = shell->fd[0];
+	while (i < shell->input_len - 1)
+	{
+		pipe(shell->fd);
+		shell->pid = fork();
+		if (shell->pid == 0)
+			middle_child(shell, i);
+		close(shell->prev_fd);
+		close(shell->fd[1]);
+		shell->prev_fd = shell->fd[0];
+		i++;
+	}
+	shell->pid = fork();
+	if (shell->pid == 0)
+		last_child(shell, i);
+	close(shell->prev_fd);
+	while (wait(NULL) > 0)
+		;
 }
 
 int main(int ac, char **av, char **env)
 {
-    char *input;
-	mini_t mini;
+	shell_t shell;
 	char *str;
 
-	mini.ac = ac;
-	mini.av = av;
-	mini.env = env;
-	while (1)
+	shell.ac = ac;
+	shell.av = av;
+	shell.env = env;
+	while  (1)
 	{
-		input = readline("minishell$ ");
-        if (!input)
+		shell.input = readline("minishell$ ");
+		if (!shell.input)
+			return(printf("exit\n"), 0);
+		if (shell.input)
+			add_history(shell.input);
+		if (find_pipe(shell.input))
+			real_pipex(&shell);
+		else
 		{
-			printf("exit\n");
-			break;
+			put_command(&shell, shell.input);
+			shell.pid = fork();
+			if (shell.pid == 0)
+				mini_pipex(&shell, shell.path, shell.input);
+			wait(NULL);
 		}
-        if (*input)
-			add_history(input);
-		pipe(mini.fd);
-		mini.pid = fork();
-		if (mini.pid == 0)
-		{
-			get_command(&mini, input);
-		}
-		close(mini.fd[1]);
-		wait(NULL);
-		mini.path = get_next_line(mini.fd[0]);
-		if (!mini.path)
-			printf("minishell: %s no such file or directory\n", input);
-		close(mini.fd[0]);
-		pipe(mini.ffd);
-		mini.pid = fork();
-		if (mini.pid == 0)
-		{
-			pipex(&mini, mini.path, input);
-		}
-		close(mini.ffd[1]);
-		wait(NULL);
-		while(str = get_next_line(mini.ffd[0]))
-		{
-			printf("%s", str);
-			free(str);
-		}
-		free(input);
-		close(mini.ffd[0]);
+		free(shell.input);
     }
     return 0;
 }
