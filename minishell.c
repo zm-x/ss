@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   minishell.c                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: zael-mou <zael-mou@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/02/16 11:20:59 by zael-mou          #+#    #+#             */
+/*   Updated: 2025/02/17 15:50:53 by zael-mou         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "minishell.h"
 
 void	free_split(char **str)
@@ -40,6 +52,8 @@ void	get_command(shell_t *shell, char *command)
 	close(shell->fd[0]);
     close(shell->fd[1]);
 	execve("/usr/bin/which", &str[0], shell->env);
+	perror("execve failed");
+    exit(1);
 }
 
 void	put_command(shell_t *shell, char *input)
@@ -56,14 +70,14 @@ void	put_command(shell_t *shell, char *input)
 		close(shell->fd[0]);
 }
 
-int	find_pipe(char *av)
+int	find_thing(char *av, char c)
 {
 	int	i;
 
 	i = 0;
 	while (av[i])
 	{
-		if (av[i] == '|')
+		if (av[i] == c)
 			return (1);
 		i++;
 	}
@@ -92,6 +106,14 @@ void	middle_child(shell_t *shell, int i)
 
 void	last_child(shell_t *shell, int i)
 {
+	int	fd;
+
+	if (shell->redir == 1)
+	{
+		fd = open(shell->d_input[shell->input_len - 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		dup2(fd, 1);
+		close(fd);
+	}
 	dup2(shell->prev_fd, 0);
 	close(shell->prev_fd);
 	put_command(shell, shell->d_input[i]);
@@ -135,9 +157,8 @@ int main(int ac, char **av, char **env)
 	shell_t shell;
 	char *str;
 
-	shell.ac = ac;
-	shell.av = av;
 	shell.env = env;
+	shell.redir = 0;
 	while  (1)
 	{
 		shell.input = readline("minishell$ ");
@@ -145,7 +166,9 @@ int main(int ac, char **av, char **env)
 			return(printf("exit\n"), 0);
 		if (shell.input)
 			add_history(shell.input);
-		if (find_pipe(shell.input))
+		if (find_thing(shell.input, '>'))
+			shell.redir = 1;
+		if (find_thing(shell.input, '|'))
 			real_pipex(&shell);
 		else
 		{

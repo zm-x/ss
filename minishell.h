@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   minishell.h                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: zael-mou <zael-mou@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/02/16 11:12:47 by zael-mou          #+#    #+#             */
+/*   Updated: 2025/02/16 16:19:08 by zael-mou         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef MINISHELL_H
 #define MINISHELL_H
 
@@ -8,8 +20,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include "get_next_line.h"
+#include <fcntl.h>
 
-typedef struct mini
+typedef struct shell
 {
 	int	fd[2];
 	pid_t pid;
@@ -17,8 +30,12 @@ typedef struct mini
 	int ac;
     char *path;
 	char **env;
-	int ffd[2];
-}	mini_t;
+	char *input;
+	int	prev_fd;
+	char	**d_input;
+	int	input_len;
+	int	redir;
+}	shell_t;
 
 char	**ft_split(char const *s, char c);
 
