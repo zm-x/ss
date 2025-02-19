@@ -6,7 +6,7 @@
 /*   By: zael-mou <zael-mou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/02/16 11:12:47 by zael-mou          #+#    #+#             */
-/*   Updated: 2025/02/16 16:19:08 by zael-mou         ###   ########.fr       */
+/*   Updated: 2025/02/18 17:45:37 by zael-mou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,13 +21,12 @@
 #include <sys/wait.h>
 #include "get_next_line.h"
 #include <fcntl.h>
+#include <signal.h>
 
 typedef struct shell
 {
 	int	fd[2];
 	pid_t pid;
-	char **av;
-	int ac;
     char *path;
 	char **env;
 	char *input;
@@ -35,6 +34,9 @@ typedef struct shell
 	char	**d_input;
 	int	input_len;
 	int	redir;
+	char	*command;
+	char	*to_do;
+	int	index;
 }	shell_t;
 
 char	**ft_split(char const *s, char c);

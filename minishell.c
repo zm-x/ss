@@ -6,11 +6,13 @@
 /*   By: zael-mou <zael-mou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/02/16 11:20:59 by zael-mou          #+#    #+#             */
-/*   Updated: 2025/02/17 15:50:53 by zael-mou         ###   ########.fr       */
+/*   Updated: 2025/02/18 17:49:18 by zael-mou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minishell.h"
+
+static int ll = 0;
 
 void	free_split(char **str)
 {
@@ -152,6 +154,61 @@ void	real_pipex(shell_t *shell)
 		;
 }
 
+int	command_len(shell_t *shell , char *input)
+{
+	int	j;
+	int	k;
+
+	j = 0;
+	k = 0;
+	shell->index = ll;
+	while (input[ll] == ' ' && input[ll])
+		ll++;
+	while (input[ll] && input[ll] != ' ')
+	{
+		j++;
+		ll++;
+	}
+	while (input[ll] == ' ' && input[ll])
+	{
+		ll++;
+		k++;
+	}
+	if (input[ll] == '-')
+	{
+		j += k;
+		while (input[ll] && input[ll] != ' ')
+		{
+			j++;
+			ll++;
+		}
+	}
+	return (j);
+}
+
+char	*alloc_command(int i, char *input, int start)
+{
+	char	*str;
+	int	l;
+
+	//if (!i)
+		//return (0);
+	l = 0;
+	str = malloc(i + 1);
+	str[i] = '\0';
+	while (l < i)
+		str[l++] = input[start++];
+	return(str);
+}
+
+void	handle_input(shell_t *shell)
+{
+	shell->command = alloc_command(command_len(shell, shell->input), shell->input, shell->index);
+	printf("command = |%s|\n", shell->command);
+	shell->command = alloc_command(command_len(shell, shell->input), shell->input, shell->index);
+	printf("command = |%s|\n", shell->command);
+}
+
 int main(int ac, char **av, char **env)
 {
 	shell_t shell;
@@ -166,18 +223,20 @@ int main(int ac, char **av, char **env)
 			return(printf("exit\n"), 0);
 		if (shell.input)
 			add_history(shell.input);
-		if (find_thing(shell.input, '>'))
-			shell.redir = 1;
-		if (find_thing(shell.input, '|'))
-			real_pipex(&shell);
-		else
-		{
-			put_command(&shell, shell.input);
-			shell.pid = fork();
-			if (shell.pid == 0)
-				mini_pipex(&shell, shell.path, shell.input);
-			wait(NULL);
-		}
+		handle_input(&shell);
+		ll = 0;
+		// if (find_thing(shell.input, '>'))
+		// 	shell.redir = 1;
+		// if (find_thing(shell.input, '|'))
+		// 	real_pipex(&shell);
+		// else
+		// {
+		// 	put_command(&shell, shell.input);
+		// 	shell.pid = fork();
+		// 	if (shell.pid == 0)
+		// 		mini_pipex(&shell, shell.path, shell.input);
+		// 	wait(NULL);
+		// }
 		free(shell.input);
     }
     return 0;
